@@ -2,113 +2,119 @@
 
 YouTube RSS → 音频下载 → 通义听悟转写 → 飞书文档 → 飞书通知
 
-## 1. 给 Hermes 看的一句话
+> 如果你是 Hermes，不要读这个文件，去读 `PROMPT.md`。
 
-Hermes 每隔几分钟执行一次这个命令即可：
+## 目录
 
-```bash
-/home/liudi/skills/yt-transcribe-feishu/run.sh
-```
+- [yt-transcribe-feishu](#yt-transcribe-feishu)
+  - [目录](#目录)
+  - [快速开始](#快速开始)
+  - [环境变量](#环境变量)
+  - [用法](#用法)
+  - [文件结构](#文件结构)
+  - [注意事项](#注意事项)
 
-不用 `cd`，不用激活虚拟环境，脚本自己会处理。
-
-## 2. 人类首次部署步骤
+## 快速开始
 
 ```bash
 # 1. 进入仓库
 cd /home/liudi/skills/yt-transcribe-feishu
 
-# 2. 创建虚拟环境并安装依赖
+# 2. 创建虚拟环境
 python3 -m venv .venv
 source .venv/bin/activate
+
+# 3. 安装依赖
 pip install -r requirements.txt
 playwright install chromium
 
-# 3. 复制配置文件
+# 4. 复制配置文件
 cp .env.example .env
 cp config/channels.json.example config/channels.json
+# 编辑 .env 和 config/channels.json，填入真实值
 
-# 4. 编辑 .env 和 config/channels.json，填入真实值
-#    .env 里主要是飞书凭证和 Chrome CDP 配置
-#    config/channels.json 里填要监控的 YouTube 频道 ID
+# 5. 启动 Chrome CDP（或让脚本自动启动）
+# 脚本会自动尝试连接 CDP_URL；如果未运行，会用 CHROME_PROFILE_DIR 启动 Chrome
 
-# 5. 手动跑一次，确认能通
-./run.sh
+# 6. 运行流水线
+python3 -m yt_transcribe_feishu.pipeline
 ```
 
-## 3. Hermes 周期任务配置示例
+## 环境变量
 
-在 Hermes 里加一条定时任务，比如每 10 分钟执行一次：
-
-```bash
-*/10 * * * * /home/liudi/skills/yt-transcribe-feishu/run.sh
-```
-
-或者让 Hermes 每分钟轮询（更及时）：
-
-```bash
-* * * * * /home/liudi/skills/yt-transcribe-feishu/run.sh
-```
-
-## 4. 运行输出与退出码
-
-| 场景 | 输出 | 退出码 |
+| 变量 | 说明 | 默认值 |
 |------|------|--------|
-| 没有新视频 | `[SILENT]` | `0` |
-| 成功生成文档 | `文档已生成: https://...` | `0` |
-| 出错 | 错误日志 + 飞书通知 | `1` |
+| `CDP_URL` | Chrome CDP 地址 | `http://127.0.0.1:9226` |
+| `CHROME_PROFILE_DIR` | Chrome profile 目录 | `~/.config/google-chrome-tingwu` |
+| `CHROME_DISPLAY` | X11 DISPLAY | `:10` |
+| `TINGWU_STATE_FILE` | 登录态保存文件 | `~/.config/yt-transcribe-feishu/tingwu_state.json` |
+| `TINGWU_TRANSCRIBE_TIMEOUT` | 转写等待超时（秒） | `180` |
+| `TINGWU_POLL_INTERVAL` | 转写轮询间隔（秒） | `5` |
+| `FEISHU_APP_ID` | 飞书应用 ID | - |
+| `FEISHU_APP_SECRET` | 飞书应用 Secret | - |
+| `FEISHU_WEBHOOK_URL` | 飞书群机器人 Webhook | - |
+| `FEISHU_USER_OPEN_ID` | 接收通知的用户 open_id | - |
+| `FEISHU_GROUP_NOTIFY` | 是否发送群通知 | `1` |
+| `FEISHU_GROUP_ONLY` | 是否只发群通知 | `0` |
+| `RUN_CMD_TIMEOUT` | 命令执行超时（秒） | `180` |
+| `YOUTUBE_CHANNELS_CONFIG` | 频道配置文件 | `./config/channels.json` |
+| `YOUTUBE_RSS_STATE_FILE` | 已处理视频状态文件 | `./data/processed.json` |
+| `LOG_LEVEL` | 日志级别 | `INFO` |
 
-Hermes 判断逻辑建议：
-
-- 退出码 `0` 就是正常，不用管 `[SILENT]`。
-- 退出码 `1` 表示失败，脚本已经自动发飞书错误通知。
-
-## 5. 文件说明
-
-```
-yt-transcribe-feishu/
-├── run.sh                      # Hermes / cron 入口
-├── .env                        # 本地 secrets（git 忽略）
-├── .env.example                # secrets 示例
-├── config/channels.json        # YouTube 频道配置（git 忽略）
-├── config/channels.json.example
-├── data/processed.json         # 已处理视频记录（git 忽略）
-├── yt_transcribe_feishu/       # Python 代码
-└── README.md                   # 本文件
-```
-
-## 6. 常见操作
+## 用法
 
 ```bash
-# 手动跑一次
-./run.sh
+# 运行完整流水线
+python3 -m yt_transcribe_feishu.pipeline
 
-# 测试模式（不执行实际流程，只加载配置）
-./run.sh --test
+# 测试模式（不执行实际流程，仅加载配置）
+python3 -m yt_transcribe_feishu.pipeline --test
 
 # 单独保存通义听悟登录态（登录成功后执行）
 python3 -m yt_transcribe_feishu.tingwu --save-login
+
+# 单独检查 RSS
+python3 -m yt_transcribe_feishu.rss --output /tmp/new_videos.json --limit 1
+
+# Hermes / cron 入口（详见 PROMPT.md）
+./run.sh
 ```
 
-## 7. 注意事项
+## 文件结构
 
-1. **不要提交 secrets**：`.env`、`config/channels.json`、`data/processed.json` 已在 `.gitignore` 里。
-2. **Chrome CDP**：默认连接 `http://127.0.0.1:9226`，使用 profile `~/.config/google-chrome-tingwu`。如果实际配置不同，改 `.env`。
-3. **超时**：所有命令 180s，转写等待默认 180s，代码硬上限 300s，不会出现 60 分钟超时。
-4. **登录态**：脚本启动时会自动加载 `~/.config/google-chrome-tingwu/tingwu_cookies.json`，如果还是提示未登录，手动登录一次再执行 `python3 -m yt_transcribe_feishu.tingwu --save-login`。
-5. **每次修改后必须验证**：跑一遍 `./run.sh`，不要“等下次”。
+```
+yt-transcribe-feishu/
+├── yt_transcribe_feishu/     # Python 包
+│   ├── __init__.py
+│   ├── config.py             # 配置加载
+│   ├── utils.py              # 通用工具（run_cmd、日志）
+│   ├── browser.py            # Chrome CDP 管理
+│   ├── rss.py                # YouTube RSS 检查
+│   ├── download.py           # 音频下载
+│   ├── tingwu.py             # 通义听悟上传/提取
+│   ├── feishu.py             # 飞书文档/通知
+│   └── pipeline.py           # 主流程
+├── config/
+│   ├── channels.json         # 本地频道配置（未跟踪）
+│   └── channels.json.example # 示例配置
+├── data/
+│   ├── processed.json        # 已处理视频记录（未跟踪）
+│   └── .gitkeep
+├── logs/
+│   └── .gitkeep
+├── .env                      # 本地 secrets（未跟踪）
+├── .env.example              # secrets 示例
+├── .gitignore
+├── run.sh                    # Hermes / cron 入口
+├── PROMPT.md                 # 给 Hermes 看的操作说明
+├── requirements.txt
+└── README.md
+```
 
-## 8. 环境变量速查
+## 注意事项
 
-| 变量 | 作用 | 默认值 |
-|------|------|--------|
-| `CDP_URL` | Chrome CDP 地址 | `http://127.0.0.1:9226` |
-| `CHROME_PROFILE_DIR` | Chrome profile | `~/.config/google-chrome-tingwu` |
-| `FEISHU_APP_ID` | 飞书应用 ID | 空 |
-| `FEISHU_APP_SECRET` | 飞书应用 Secret | 空 |
-| `FEISHU_WEBHOOK_URL` | 飞书群机器人 Webhook | 空 |
-| `FEISHU_USER_OPEN_ID` | 接收通知的个人 open_id | 空 |
-| `YOUTUBE_CHANNELS_CONFIG` | 频道配置文件 | `./config/channels.json` |
-| `YOUTUBE_RSS_STATE_FILE` | 已处理记录 | `./data/processed.json` |
-| `TINGWU_TRANSCRIBE_TIMEOUT` | 转写等待秒数 | `180`（最大 `300`） |
-| `RUN_CMD_TIMEOUT` | 命令超时秒数 | `180` |
+1. **不要提交 secrets**：`.env`、`config/channels.json`、`data/processed.json`、`tingwu_state.json` 都已加入 `.gitignore`。
+2. **超时**：所有命令默认超时 180 秒（`RUN_CMD_TIMEOUT`）。转写等待默认 180 秒，代码硬上限 300 秒，不会出现 Hermes 之前那种 60 分钟超时。
+3. **Chrome profile**：默认使用 `~/.config/google-chrome-tingwu`。如果实际 profile 路径不同，请在 `.env` 中设置 `CHROME_PROFILE_DIR`。
+4. **登录态**：脚本启动时会自动加载 `~/.config/google-chrome-tingwu/tingwu_cookies.json`。如果还是提示未登录，先手动登录通义听悟，然后运行 `python3 -m yt_transcribe_feishu.tingwu --save-login` 保存状态。
+5. **验证**：每次修改后请先用 `--test` 模式或一次完整运行验证，不要“等下次”。
