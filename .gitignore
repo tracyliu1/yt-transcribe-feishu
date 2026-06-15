@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local configuration and state (sensitive/personal)
+config/channels.json
+data/processed.json
+data/*.json
+logs/*.log
+*.log
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
