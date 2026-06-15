@@ -115,7 +115,7 @@ def check_new_videos(channel_id, state):
     return new_videos
 
 
-def check_rss(channels_config=None, state_file=None, limit=1, dry_run=False):
+def check_rss(channels_config=None, state_file=None, limit=1, dry_run=False, save_state=True):
     """Check all configured channels and return new videos."""
     channels_config = channels_config or config.YOUTUBE_CHANNELS_CONFIG
 
@@ -129,7 +129,7 @@ def check_rss(channels_config=None, state_file=None, limit=1, dry_run=False):
         new_videos = check_new_videos(channel_id, state)
         all_new_videos.extend(new_videos[:limit])
 
-    if not dry_run:
+    if save_state and not dry_run:
         save_state(state, state_file)
 
     return {

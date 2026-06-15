@@ -76,7 +76,14 @@ class BrowserSession:
             self.cdp_url, timeout=10000
         )
         self.context = self.browser.contexts[0]
-        self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        # Start with a single fresh page to avoid stale modals/tabs from
+        # previous runs.
+        for p in list(self.context.pages):
+            try:
+                p.close()
+            except Exception:
+                pass
+        self.page = self.context.new_page()
         return self
 
     def close(self):

@@ -25,7 +25,7 @@ def run(test_mode: bool = False) -> int:
 
     try:
         logging.info("=== 步骤1：检查 RSS ===")
-        result = rss.check_rss(limit=1)
+        result = rss.check_rss(limit=1, save_state=False)
         videos = result.get("videos", [])
         if not videos:
             print("[SILENT]", flush=True)
@@ -35,6 +35,7 @@ def run(test_mode: bool = False) -> int:
         video_id = video["video_id"]
         video_url = video["url"]
         video_title = video["title"]
+        channel_id = video.get("channel_id", "")
 
         logging.info("=== 步骤2：下载音频 ===")
         audio_path, meta = download.download_audio(video_url, video_id)
@@ -42,13 +43,14 @@ def run(test_mode: bool = False) -> int:
         logging.info("=== 步骤3：连接 Chrome CDP 并检查登录 ===")
         browser.ensure_chrome_cdp()
         session = browser.BrowserSession().connect()
+        tingwu.load_cdp_cookies(session)
 
         if not tingwu.check_login(session):
             logging.info("尝试从保存的登录态恢复...")
             if not tingwu.restore_login(session):
                 raise RuntimeError(
                     "通义听悟未登录。请手动登录后运行 "
-                    "python -m yt_transcribe_feishu.tingwu --save-login"
+                    "python3 -m yt_transcribe_feishu.tingwu --save-login"
                 )
 
         logging.info("=== 步骤4：上传并转写 ===")
@@ -73,6 +75,19 @@ def run(test_mode: bool = False) -> int:
 
         logging.info("文档已生成: %s", doc_url)
         logging.info("标题: %s", content["title"])
+
+        # Mark video as processed only after full success.
+        try:
+            state = rss.load_state()
+            if channel_id not in state:
+                state[channel_id] = []
+            if video_id not in state[channel_id]:
+                state[channel_id].append(video_id)
+                rss.save_state(state)
+                logging.info("已标记为处理: %s", video_id)
+        except Exception as e:
+            logging.warning("标记处理状态失败: %s", e)
+
         return 0
 
     except Exception as e:
