@@ -155,45 +155,26 @@ def upload_and_transcribe(
     # available. Large files may take a few seconds to register.
     print(f"[{_now()}] 等待文件上传 UI 就绪...")
     page.locator(f'text="{basename}"').first.wait_for(state="visible", timeout=60000)
-    page.get_by_text("开始转写").first.wait_for(state="visible", timeout=60000)
+    page.locator('button:has-text("开始转写")').first.wait_for(
+        state="visible", timeout=60000
+    )
 
     print(f"[{_now()}] 点击'开始转写'...")
-    page.get_by_text("开始转写").first.click(force=True)
+    page.locator('button:has-text("开始转写")').first.click(force=True)
     print(f"[{_now()}] 已提交")
 
-    # After submission Tingwu creates a record card on the home page. We poll
-    # the home page, click the card, and then wait for the result page to show
-    # transcript content.
+    # After submission Tingwu shows an upload progress modal on the current
+    # page, then creates a record card on the home page. We must stay on the
+    # current page until the modal closes and the card appears; reloading too
+    # early cancels the client-side progress and delays detection.
     start = time.time()
     result_url = None
+    print(f"[{_now()}] 等待上传/转写任务创建...")
+
     while time.time() - start < timeout:
-        page.goto("https://tingwu.aliyun.com/home", wait_until="domcontentloaded")
-        time.sleep(3)
-
         body_text = page.inner_text("body")
-        cards = page.locator(f'text="{basename}"').all()
 
-        for card in cards:
-            try:
-                card_text = card.inner_text()
-                if (
-                    basename in card_text
-                    and "上传失败" not in card_text
-                    and "转写失败" not in card_text
-                ):
-                    print(f"[{_now()}] 发现记录，打开结果页: {basename}")
-                    card.click(force=True)
-                    time.sleep(3)
-                    if "/doc/transcripts/" in page.url:
-                        result_url = page.url
-                    break
-            except Exception:
-                continue
-
-        if result_url:
-            break
-
-        # Check for a failed upload of this specific file.
+        # Check for failure near the filename.
         if basename in body_text:
             lines = body_text.split("\n")
             for i, line in enumerate(lines):
@@ -203,8 +184,34 @@ def upload_and_transcribe(
                         raise RuntimeError(f"上传/转写失败: {basename}")
                     break
 
-        if "转写中" in body_text:
-            print(f"[{_now()}] 仍在转写中...")
+        # Wait while the upload modal is visible.
+        if page.locator('text="上传中"').count() > 0:
+            print(f"[{_now()}] 上传中...")
+            time.sleep(poll_interval)
+            continue
+
+        try:
+            card = page.locator(f'.groupCards:has-text("{basename}")').first
+            if card.is_visible():
+                print(f"[{_now()}] 发现记录，打开结果页: {basename}")
+                # Wait for the card to finish its loading state and for any
+                # lingering modal overlay to disappear before clicking.
+                try:
+                    page.locator(
+                        f'.groupCards:has-text("{basename}") .loadingImg'
+                    ).first.wait_for(state="hidden", timeout=60000)
+                except Exception:
+                    pass
+                time.sleep(2)
+                card.click(force=True)
+                try:
+                    page.wait_for_url("**/doc/transcripts/**", timeout=10000)
+                    result_url = page.url
+                    break
+                except Exception:
+                    print(f"[{_now()}] 点击未导航，重试...")
+        except Exception:
+            pass
 
         time.sleep(poll_interval)
 

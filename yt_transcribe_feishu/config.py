@@ -38,11 +38,10 @@ FEISHU_USER_OPEN_ID = os.getenv("FEISHU_USER_OPEN_ID", "")
 FEISHU_GROUP_NOTIFY = os.getenv("FEISHU_GROUP_NOTIFY", "").lower() in ("1", "true", "yes", "on")
 FEISHU_GROUP_ONLY = os.getenv("FEISHU_GROUP_ONLY", "").lower() in ("1", "true", "yes", "on")
 
-# Timeouts (seconds). RUN_CMD_TIMEOUT defaults to 180s per requirement.
-# TINGWU_TRANSCRIBE_TIMEOUT is longer because transcription time depends on
-# audio length (e.g. a 24-minute video needs ~3-4 minutes).
-RUN_CMD_TIMEOUT = int(os.getenv("RUN_CMD_TIMEOUT", "180"))
-TINGWU_TRANSCRIBE_TIMEOUT = int(os.getenv("TINGWU_TRANSCRIBE_TIMEOUT", "600"))
+# Timeouts (seconds). Per requirement: no timeout > 5 minutes (300s).
+RUN_CMD_TIMEOUT = min(int(os.getenv("RUN_CMD_TIMEOUT", "180")), 300)
+# Single-video transcription should finish within 3 minutes; hard cap at 5 min.
+TINGWU_TRANSCRIBE_TIMEOUT = min(int(os.getenv("TINGWU_TRANSCRIBE_TIMEOUT", "180")), 300)
 TINGWU_POLL_INTERVAL = int(os.getenv("TINGWU_POLL_INTERVAL", "5"))
 
 # Logging
