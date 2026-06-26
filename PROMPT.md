@@ -7,7 +7,7 @@
 每 4 小时执行一次：
 
 ```bash
-/home/liudi/skills/yt-transcribe-feishu/run.sh
+/path/to/yt-transcribe-feishu/run.sh
 ```
 
 不要 `cd`、不要激活虚拟环境、不要改命令。`run.sh` 会自己处理。
@@ -17,7 +17,7 @@
 用 cron，每 4 小时一次：
 
 ```bash
-0 */4 * * * /home/liudi/skills/yt-transcribe-feishu/run.sh
+0 */4 * * * /path/to/yt-transcribe-feishu/run.sh
 ```
 
 ## 3. 如何判断结果
@@ -48,11 +48,11 @@
 
 ## 6. 文件位置
 
-- 仓库：`/home/liudi/skills/yt-transcribe-feishu`
-- 入口脚本：`/home/liudi/skills/yt-transcribe-feishu/run.sh`
+- 仓库：`/path/to/yt-transcribe-feishu`
+- 入口脚本：`/path/to/yt-transcribe-feishu/run.sh`
 - 配置：`.env` 和 `config/channels.json`（已存在，不要改）
 - 日志：脚本直接输出到 stdout/stderr，由你的调度系统捕获
 
 ## 7. 这条指令最重要
 
-**你只负责定时调用 `/home/liudi/skills/yt-transcribe-feishu/run.sh`，其他什么都不做。**
+**你只负责定时调用 `/path/to/yt-transcribe-feishu/run.sh`，其他什么都不做。**
