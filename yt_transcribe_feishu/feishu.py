@@ -50,14 +50,23 @@ def create_document(content: dict) -> str:
 
 
 def _build_title(content):
+    """Build title in format: YYYY-MM-DD title - author (max 50 chars for title part)."""
+    import re
+
     publish_date = content.get("publish_date", "")
     author = content.get("author", "")
     title = content.get("title", "未命名文档")
 
+    # Sanitize title same as download.py: replace special chars, collapse spaces, truncate
+    safe_title = re.sub(r'[\\/:*?"<>|]', ' ', title)
+    safe_title = re.sub(r'\s+', ' ', safe_title).strip()
+    if len(safe_title) > 50:
+        safe_title = safe_title[:50].rstrip() + '...'
+
     parts = []
     if publish_date:
-        parts.append(f"[{publish_date}]")
-    parts.append(title)
+        parts.append(publish_date)
+    parts.append(safe_title)
     if author:
         parts.append(f"- {author}")
     return " ".join(parts)

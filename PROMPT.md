@@ -4,7 +4,7 @@
 
 ## 1. 你要执行的命令
 
-每隔 10 分钟执行一次：
+每 4 小时执行一次：
 
 ```bash
 /home/liudi/skills/yt-transcribe-feishu/run.sh
@@ -14,10 +14,10 @@
 
 ## 2. 周期任务配置
 
-用 cron，每 10 分钟一次：
+用 cron，每 4 小时一次：
 
 ```bash
-*/10 * * * * /home/liudi/skills/yt-transcribe-feishu/run.sh
+0 */4 * * * /home/liudi/skills/yt-transcribe-feishu/run.sh
 ```
 
 ## 3. 如何判断结果
