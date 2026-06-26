@@ -145,6 +145,10 @@ def upload_and_transcribe(
     local_upload_btn.wait_for(state="visible", timeout=30000)
     local_upload_btn.click(force=True)
 
+    # Wait for the file dialog to render the input element
+    print(f"[{_now()}] 等待文件输入框...")
+    page.locator('input[type="file"]').first.wait_for(state="attached", timeout=30000)
+
     print(f"[{_now()}] 设置文件...")
     inputs = page.locator('input[type="file"]').all()
     if not inputs:
@@ -194,22 +198,21 @@ def upload_and_transcribe(
             card = page.locator(f'.groupCards:has-text("{basename}")').first
             if card.is_visible():
                 print(f"[{_now()}] 发现记录，打开结果页: {basename}")
-                # Wait for the card to finish its loading state and for any
-                # lingering modal overlay to disappear before clicking.
-                try:
-                    page.locator(
-                        f'.groupCards:has-text("{basename}") .loadingImg'
-                    ).first.wait_for(state="hidden", timeout=60000)
-                except Exception:
-                    pass
-                time.sleep(2)
-                card.click(force=True)
-                try:
-                    page.wait_for_url("**/doc/transcripts/**", timeout=10000)
-                    result_url = page.url
-                    break
-                except Exception:
-                    print(f"[{_now()}] 点击未导航，重试...")
+                # After clicking "开始转写" the page state changes and
+                # Playwright's synthetic click events are silently dropped.
+                # Refresh the home page to clear the stale state before clicking.
+                page.goto("https://tingwu.aliyun.com/home", wait_until="domcontentloaded")
+                time.sleep(3)
+                card = page.locator(f'.groupCards:has-text("{basename}")').first
+                if card.is_visible():
+                    card.click(force=True)
+                    time.sleep(5)
+                    if "/doc/transcripts/" in page.url:
+                        result_url = page.url
+                        print(f"[{_now()}] 导航成功: {result_url}")
+                        break
+                print(f"[{_now()}] 点击未导航，重试...")
+
         except Exception:
             pass
 
